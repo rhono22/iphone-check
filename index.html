@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f4f5f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<title>iPhone Check</title>
+<style>
+:root {
+  --bg: #f4f5f8; --panel: #ffffff; --panel-2: #eef0f4; --ink: #15171c; --muted: #646a76; --line: #dde0e7;
+  --accent: #2b6de8; --accent-ink: #ffffff; --ok: #1f8f55; --ok-soft: #dcf3e6; --bad: #c8343b; --bad-soft: #fbe1e2;
+  --warn: #a86a00; --warn-soft: #fbefd6; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121418; --panel: #1b1e24; --panel-2: #23272f; --ink: #eceef2; --muted: #9aa1ad; --line: #2e333c;
+    --accent: #5b8ef0; --ok: #4cc485; --ok-soft: #173326; --bad: #ef6b70; --bad-soft: #3a1c1e; --warn: #e2a63a; --warn-soft: #3a2d14;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121418; --panel: #1b1e24; --panel-2: #23272f; --ink: #eceef2; --muted: #9aa1ad; --line: #2e333c;
+  --accent: #5b8ef0; --ok: #4cc485; --ok-soft: #173326; --bad: #ef6b70; --bad-soft: #3a1c1e; --warn: #e2a63a; --warn-soft: #3a2d14;
+  --shadow: none;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+body { padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
+main { max-width: 560px; margin: 0 auto; }
+h1 { font-size: 24px; margin: 4px 0 2px; letter-spacing: -.01em; }
+h2 { font-size: 20px; margin: 0 0 6px; }
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+.small { font-size: 13.5px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); margin-top: 14px; }
+.progress { height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden; margin-top: 12px; }
+.progress span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+.step-no { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+button { font: inherit; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-weight: 650; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.pass { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.fail { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn:disabled { opacity: .5; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.row .btn { flex: 1 1 0; }
+.verdict { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-top: 16px; }
+.verdict .btn { white-space: nowrap; padding: 10px 12px; }
+.tool { margin-top: 12px; }
+.readout { font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--panel-2); border-radius: 10px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word; }
+video { width: 100%; border-radius: 12px; background: #000; aspect-ratio: 3/4; object-fit: cover; }
+ul.check { list-style: none; padding: 0; margin: 10px 0 0; }
+ul.check li { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+ul.check li:first-child { border-top: 0; }
+ul.check .how { font-size: 13.5px; color: var(--muted); }
+.mini { display: inline-flex; gap: 6px; }
+.mini button { width: 44px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-weight: 800; }
+.mini button[aria-pressed="true"].y { background: var(--ok); border-color: var(--ok); color: #fff; }
+.mini button[aria-pressed="true"].n { background: var(--bad); border-color: var(--bad); color: #fff; }
+.tag { display: inline-block; font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 99px; }
+.tag.pass { background: var(--ok-soft); color: var(--ok); } .tag.fail { background: var(--bad-soft); color: var(--bad); } .tag.skip { background: var(--panel-2); color: var(--muted); }
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+.summary div { background: var(--panel-2); border-radius: 12px; padding: 12px; text-align: center; }
+.summary b { display: block; font-size: 26px; }
+.results { list-style: none; padding: 0; margin: 0; }
+.results li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.results .tag { flex: none; }
+.note { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
+/* full-screen test layers */
+.layer { position: fixed; inset: 0; z-index: 50; touch-action: none; user-select: none; -webkit-user-select: none; }
+.grid { display: grid; background: #fff; }
+.grid div { border: .5px solid #cfd3da; background: #fff; }
+.grid div.hit { background: #2fbf71; border-color: #2fbf71; }
+.hud { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom)); background: rgba(0,0,0,.72); color: #fff; padding: 8px 14px; border-radius: 99px; font-size: 14px; pointer-events: auto; display: flex; gap: 12px; align-items: center; }
+.hud button { background: #fff; color: #000; border: 0; border-radius: 99px; padding: 6px 12px; font-weight: 700; }
+.dot { position: fixed; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(43,109,232,.35); border: 2px solid #2b6de8; pointer-events: none; }
+.big { font-size: 64px; font-weight: 800; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>iPhone Check</h1>
+  <p class="muted small">Open this page in Safari on the iPhone you are checking. Works offline once loaded; nothing is uploaded.</p>
+  <div class="progress" aria-hidden="true"><span id="bar"></span></div>
+  <section class="card" id="stage"></section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage");
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const results = {};   // id -> "pass" | "fail" | "skip"
+  const notes = {};     // id -> extra text for the report
+  let cleanup = null;   // stops camera/mic/sensors when leaving a step
+
+  // ---------------------------------------------------------------- device info
+  function deviceInfo() {
+    const ua = navigator.userAgent;
+    const ios = (/OS (\d+)_(\d+)(?:_(\d+))?/.exec(ua) || []).slice(1).filter(Boolean).join(".");
+    const w = Math.round(screen.width), h = Math.round(screen.height), dpr = window.devicePixelRatio || 1;
+    const key = `${Math.min(w, h)}x${Math.max(w, h)}@${dpr}`;
+    // Safari hides the exact model; the screen size narrows it to a family.
+    const families = {
+      "320x568@2": "iPhone SE (1st) / 5s", "375x667@2": "iPhone SE (2nd/3rd) / 6–8", "414x736@3": "iPhone 6–8 Plus",
+      "375x812@3": "iPhone X / XS / 11 Pro / 12 mini / 13 mini", "414x896@2": "iPhone XR / 11", "414x896@3": "iPhone XS Max / 11 Pro Max",
+      "390x844@3": "iPhone 12 / 12 Pro / 13 / 13 Pro / 14", "428x926@3": "iPhone 12 Pro Max / 13 Pro Max / 14 Plus",
+      "393x852@3": "iPhone 14 Pro / 15 / 15 Pro / 16", "430x932@3": "iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus",
+      "402x874@3": "iPhone 16 Pro / 17 / 17 Pro", "440x956@3": "iPhone 16 Pro Max / 17 Pro Max", "420x912@3": "iPhone Air",
+    };
+    return { ios, screen: `${w}×${h} @${dpr}x`, family: families[key] || "Unknown (compare with the seller's claim)", iphone: /iPhone/.test(ua) };
+  }
+
+  // ---------------------------------------------------------------- steps
+  const steps = [
+    { id: "start", title: "Start", render: renderStart },
+    { id: "touch", title: "Touchscreen", test: true, render: renderTouch },
+    { id: "multitouch", title: "Multi-touch", test: true, render: renderMulti },
+    { id: "display", title: "Display colors", test: true, render: renderDisplay },
+    { id: "speaker", title: "Speaker", test: true, render: renderSpeaker },
+    { id: "mic", title: "Microphone", test: true, render: renderMic },
+    { id: "camBack", title: "Back camera", test: true, render: (s) => renderCamera(s, "environment") },
+    { id: "camFront", title: "Front camera", test: true, render: (s) => renderCamera(s, "user") },
+    { id: "motion", title: "Motion sensors", test: true, render: renderMotion },
+    { id: "gps", title: "GPS / location", test: true, render: renderGps },
+    { id: "wifi", title: "Wi-Fi", test: true, render: (s) => renderConn(s, "wifi") },
+    { id: "data", title: "Mobile data", test: true, render: (s) => renderConn(s, "data") },
+    { id: "manual", title: "Settings checklist", render: renderManual },
+    { id: "report", title: "Report", render: renderReport },
+  ];
+  let idx = 0;
+
+  function go(i) {
+    if (cleanup) { try { cleanup(); } catch (_) { /* already stopped */ } cleanup = null; }
+    idx = Math.max(0, Math.min(steps.length - 1, i));
+    const tests = steps.filter((s) => s.test).length;
+    $("bar").style.width = `${Math.round((idx / (steps.length - 1)) * 100)}%`;
+    const s = steps[idx];
+    stage.innerHTML = s.id === "start" || s.id === "report" ? "" :
+      `<div class="step-no">Step ${idx} of ${steps.length - 2}${s.test ? "" : ""}</div><h2>${esc(s.title)}</h2>`;
+    s.render(s);
+    window.scrollTo(0, 0);
+    void tests;
+  }
+
+  /** Pass / Fail / Skip buttons that record the result and move on. */
+  function verdict(s, opts = {}) {
+    const box = document.createElement("div");
+    box.className = "verdict";
+    box.innerHTML = `<button class="btn pass" type="button">✓ Works</button><button class="btn fail" type="button">✕ Problem</button><button class="btn" type="button">Skip</button>`;
+    const [p, f, k] = box.querySelectorAll("button");
+    p.onclick = () => { results[s.id] = "pass"; go(idx + 1); };
+    f.onclick = () => { results[s.id] = "fail"; go(idx + 1); };
+    k.onclick = () => { results[s.id] = "skip"; go(idx + 1); };
+    if (opts.passDisabled) p.disabled = true;
+    stage.appendChild(box);
+    return p;
+  }
+
+  // ---------------------------------------------------------------- 0. start
+  function renderStart() {
+    const d = deviceInfo();
+    stage.innerHTML = `<h2>Before you start</h2>
+      <div class="readout">Screen: ${esc(d.screen)}
+Model family: ${esc(d.family)}
+iOS: ${esc(d.ios || "not detected")}</div>
+      ${d.iphone ? "" : '<div class="note">This does not look like an iPhone in Safari. Open the page on the iPhone itself.</div>'}
+      <p class="small muted" style="margin-top:12px">The model family comes from the screen size; the exact model, battery health and replaced parts are only in Settings, so the last step walks you through them.</p>
+      <ul class="small" style="padding-left:18px;margin:10px 0 0">
+        <li>Turn the volume up and the silent switch off.</li>
+        <li>Allow camera, microphone, motion and location when asked.</li>
+        <li>About 5 minutes in total.</li>
+      </ul>
+      <div class="row"><button class="btn primary" type="button" id="go">Start the check</button></div>`;
+    $("go").onclick = () => go(1);
+    notes.start = `${d.family}, iOS ${d.ios || "?"}, ${d.screen}`;
+  }
+
+  // ---------------------------------------------------------------- 1. touchscreen grid
+  function renderTouch(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Swipe your finger over the whole screen until every square turns green, including the edges and corners. A square that stays white is a dead spot.</p>
+      <div class="row"><button class="btn primary" type="button" id="t-start">Open touch test</button></div>`);
+    verdict(s);
+    $("t-start").onclick = () => {
+      const cols = 8, rows = Math.max(12, Math.round(8 * innerHeight / innerWidth));
+      const layer = document.createElement("div");
+      layer.className = "layer grid";
+      layer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      layer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+      for (let i = 0; i < cols * rows; i++) layer.appendChild(document.createElement("div"));
+      const hud = document.createElement("div");
+      hud.className = "hud";
+      hud.innerHTML = `<span id="t-left">${cols * rows} left</span><button type="button">Done</button>`;
+      document.body.append(layer, hud);
+      let left = cols * rows;
+      const mark = (x, y) => {
+        const el = document.elementFromPoint(x, y);
+        if (el && el.parentNode === layer && !el.classList.contains("hit")) {
+          el.classList.add("hit");
+          left--;
+          hud.firstChild.textContent = left ? `${left} left` : "All squares done ✓";
+        }
+      };
+      const onTouch = (e) => { e.preventDefault(); for (const t of e.touches) mark(t.clientX, t.clientY); };
+      layer.addEventListener("touchstart", onTouch, { passive: false });
+      layer.addEventListener("touchmove", onTouch, { passive: false });
+      layer.addEventListener("mousemove", (e) => { if (e.buttons) mark(e.clientX, e.clientY); });
+      const close = () => {
+        layer.remove(); hud.remove();
+        notes.touch = left ? `${left} square(s) not reached` : "all squares reached";
+        stage.querySelector(".verdict .btn.pass").focus();
+      };
+      hud.querySelector("button").onclick = close;
+      cleanup = () => { layer.remove(); hud.remove(); };
+    };
+  }
+
+  // ---------------------------------------------------------------- 2. multi-touch
+  function renderMulti(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Put 5 fingers on the screen at the same time. Each finger should show a circle and the count should reach 5.</p>
+      <div class="row"><button class="btn primary" type="button" id="m-start">Open multi-touch test</button></div>`);
+    verdict(s);
+    $("m-start").onclick = () => {
+      const layer = document.createElement("div");
+      layer.className = "layer";
+      layer.style.background = "var(--bg)";
+      layer.innerHTML = `<div class="big" style="margin-top:30vh" id="m-n">0</div><p class="muted" style="text-align:center">fingers (max <b id="m-max">0</b>)</p>`;
+      const hud = document.createElement("div");
+      hud.className = "hud";
+      hud.innerHTML = `<span>Touch with 5 fingers</span><button type="button">Done</button>`;
+      document.body.append(layer, hud);
+      let max = 0;
+      const draw = (e) => {
+        e.preventDefault();
+        layer.querySelectorAll(".dot").forEach((d) => d.remove());
+        for (const t of e.touches) {
+          const d = document.createElement("div");
+          d.className = "dot"; d.style.left = t.clientX + "px"; d.style.top = t.clientY + "px";
+          layer.appendChild(d);
+        }
+        max = Math.max(max, e.touches.length);
+        $("m-n").textContent = e.touches.length; $("m-max").textContent = max;
+      };
+      ["touchstart", "touchmove", "touchend", "touchcancel"].forEach((ev) => layer.addEventListener(ev, draw, { passive: false }));
+      const close = () => { layer.remove(); hud.remove(); notes.multitouch = `max ${max} fingers`; };
+      hud.querySelector("button").onclick = close;
+      cleanup = close;
+    };
+  }
+
+  // ---------------------------------------------------------------- 3. display
+  function renderDisplay(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Shows solid colors full screen. Look for dead or stuck pixels (dots), lines, yellow tint, uneven brightness and burn-in (ghost images, best seen on gray). Tap to go to the next color.</p>
+      <p class="small muted">Tip: set brightness to maximum first.</p>
+      <div class="row"><button class="btn primary" type="button" id="d-start">Show colors</button></div>`);
+    verdict(s);
+    $("d-start").onclick = () => {
+      const colors = [["#ffffff", "White"], ["#000000", "Black"], ["#ff0000", "Red"], ["#00ff00", "Green"], ["#0000ff", "Blue"], ["#808080", "Gray"]];
+      let i = 0;
+      const layer = document.createElement("div");
+      layer.className = "layer";
+      const hud = document.createElement("div");
+      hud.className = "hud";
+      const show = () => { layer.style.background = colors[i][0]; hud.innerHTML = `<span>${colors[i][1]} · ${i + 1}/${colors.length}</span>`; };
+      document.body.append(layer, hud);
+      show();
+      layer.addEventListener("click", () => { i++; if (i >= colors.length) { layer.remove(); hud.remove(); return; } show(); });
+      cleanup = () => { layer.remove(); hud.remove(); };
+    };
+  }
+
+  // ---------------------------------------------------------------- 4. speaker
+  function renderSpeaker(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Plays a rising tone and a short melody. It should be clear and loud, with no crackling or buzzing. Cover the bottom speaker with a finger: the sound should get quieter.</p>
+      <div class="row"><button class="btn primary" type="button" id="sp-play">▶ Play test sound</button></div>
+      <p class="small muted" style="margin-top:10px">The earpiece (top speaker) can only be tested with a phone call; it is in the checklist at the end.</p>`);
+    verdict(s);
+    let ctx = null;
+    $("sp-play").onclick = async () => {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      await ctx.resume();
+      const t0 = ctx.currentTime;
+      const gain = ctx.createGain(); gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.0001, t0); gain.gain.exponentialRampToValueAtTime(0.5, t0 + 0.05);
+      const sweep = ctx.createOscillator(); sweep.type = "sine";
+      sweep.frequency.setValueAtTime(200, t0); sweep.frequency.exponentialRampToValueAtTime(4000, t0 + 2.2);
+      sweep.connect(gain); sweep.start(t0); sweep.stop(t0 + 2.2);
+      [523, 659, 784, 1047].forEach((f, k) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "triangle"; o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+        const st = t0 + 2.4 + k * 0.28;
+        g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(0.5, st + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, st + 0.26);
+        o.start(st); o.stop(st + 0.27);
+      });
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.3);
+    };
+    cleanup = () => { if (ctx) ctx.close(); };
+  }
+
+  // ---------------------------------------------------------------- 5. microphone
+  function renderMic(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Records 4 seconds, then plays it back. Speak normally from about 30 cm away. Your voice should be clear, not muffled.</p>
+      <div class="tool"><div class="readout" id="mic-level">Level: —</div></div>
+      <div class="row"><button class="btn primary" type="button" id="mic-rec">● Record 4 seconds</button></div>
+      <audio id="mic-audio" controls playsinline style="width:100%;margin-top:12px" hidden></audio>`);
+    verdict(s);
+    let stream = null, ctx = null, raf = 0;
+    $("mic-rec").onclick = async () => {
+      const btn = $("mic-rec");
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        $("mic-level").textContent = "Microphone blocked: " + e.message + "\nAllow it in Settings > Safari > Microphone, then reload.";
+        return;
+      }
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const an = ctx.createAnalyser(); an.fftSize = 512;
+      ctx.createMediaStreamSource(stream).connect(an);
+      const buf = new Uint8Array(an.fftSize);
+      let peak = 0;
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v - 128));
+        peak = Math.max(peak, m);
+        $("mic-level").textContent = "Level: " + "▮".repeat(Math.round(m / 6)).padEnd(21, "▯");
+        raf = requestAnimationFrame(tick);
+      };
+      tick();
+      const type = MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+      const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      const chunks = [];
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.onstop = () => {
+        cancelAnimationFrame(raf);
+        stream.getTracks().forEach((t) => t.stop());
+        const a = $("mic-audio");
+        a.src = URL.createObjectURL(new Blob(chunks, { type: rec.mimeType || "audio/mp4" }));
+        a.hidden = false; a.play().catch(() => {});
+        btn.disabled = false; btn.textContent = "● Record again";
+        notes.mic = peak > 8 ? "sound picked up" : "very low input";
+      };
+      btn.disabled = true; btn.textContent = "Recording…";
+      rec.start();
+      setTimeout(() => rec.state !== "inactive" && rec.stop(), 4000);
+    };
+    cleanup = () => { cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); if (ctx) ctx.close(); };
+  }
+
+  // ---------------------------------------------------------------- 6/7. cameras
+  function renderCamera(s, facing) {
+    const back = facing === "environment";
+    stage.insertAdjacentHTML("beforeend", `<p>${back ? "Point at something with detail and text. Tap the picture to refocus. The image should be sharp, with no spots, haze or dark corners (scratched lens or moisture)." : "Look at the screen. The image should be clear; check for blur or spots."}</p>
+      <video id="cam" playsinline muted autoplay></video>
+      <div class="readout small" id="cam-info" style="margin-top:10px">Starting camera…</div>`);
+    if (back) stage.insertAdjacentHTML("beforeend", `<p class="small muted" style="margin-top:10px">Also try the other lenses (0.5× ultra wide, 2×/3×/5× telephoto) in the Camera app, and the flashlight from Control Center. Those are in the checklist.</p>`);
+    verdict(s);
+    let stream = null;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: facing }, width: { ideal: 1920 } }, audio: false });
+        const v = $("cam"); v.srcObject = stream; await v.play().catch(() => {});
+        const st = stream.getVideoTracks()[0].getSettings();
+        $("cam-info").textContent = `${st.width || "?"}×${st.height || "?"} · ${stream.getVideoTracks()[0].label || facing}`;
+        notes[s.id] = `${st.width || "?"}×${st.height || "?"}`;
+      } catch (e) {
+        $("cam-info").textContent = "Camera did not start: " + e.message + "\nAllow it in Settings > Safari > Camera, then reload. If it still fails, the camera may be faulty.";
+        notes[s.id] = "did not start";
+      }
+    })();
+    cleanup = () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
+  }
+
+  // ---------------------------------------------------------------- 8. motion
+  function renderMotion(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Tilt and turn the phone. All values should change smoothly. The compass heading should change when you turn around.</p>
+      <div class="readout" id="mo">Tap "Start sensors".</div>
+      <div class="row"><button class="btn primary" type="button" id="mo-start">Start sensors</button></div>`);
+    verdict(s);
+    const seen = { acc: false, gyro: false, compass: false };
+    const onMotion = (e) => {
+      const a = e.accelerationIncludingGravity || {}, r = e.rotationRate || {};
+      if (a.x != null) seen.acc = true;
+      if (r.alpha != null && (Math.abs(r.alpha) + Math.abs(r.beta) + Math.abs(r.gamma)) > 1) seen.gyro = true;
+      out.acc = `Accelerometer  x ${f(a.x)}  y ${f(a.y)}  z ${f(a.z)}`;
+      out.gyro = `Gyroscope      α ${f(r.alpha)}  β ${f(r.beta)}  γ ${f(r.gamma)}`;
+      paint();
+    };
+    const onOrient = (e) => {
+      const h = e.webkitCompassHeading;
+      if (h != null) seen.compass = true;
+      out.compass = `Compass        ${h != null ? Math.round(h) + "°" : "—"}`;
+      paint();
+    };
+    const out = { acc: "", gyro: "", compass: "" };
+    const f = (v) => (v == null ? "—" : (Math.round(v * 10) / 10).toFixed(1)).padStart(6);
+    const paint = () => {
+      $("mo").textContent = `${out.acc}\n${out.gyro}\n${out.compass}\n\n${seen.acc ? "✓" : "…"} accelerometer  ${seen.gyro ? "✓" : "…"} gyroscope  ${seen.compass ? "✓" : "…"} compass`;
+      notes.motion = `accelerometer ${seen.acc ? "ok" : "no data"}, gyroscope ${seen.gyro ? "ok" : "no data"}, compass ${seen.compass ? "ok" : "no data"}`;
+    };
+    $("mo-start").onclick = async () => {
+      try {
+        if (typeof DeviceMotionEvent !== "undefined" && DeviceMotionEvent.requestPermission) {
+          const p = await DeviceMotionEvent.requestPermission();
+          if (p !== "granted") { $("mo").textContent = "Motion access denied. Close Safari tab, reopen the page and allow it."; return; }
+        }
+        if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission();
+      } catch (e) { $("mo").textContent = "Could not start sensors: " + e.message; return; }
+      addEventListener("devicemotion", onMotion);
+      addEventListener("deviceorientation", onOrient);
+      $("mo").textContent = "Move the phone…";
+    };
+    cleanup = () => { removeEventListener("devicemotion", onMotion); removeEventListener("deviceorientation", onOrient); };
+  }
+
+  // ---------------------------------------------------------------- 9. GPS
+  function renderGps(s) {
+    stage.insertAdjacentHTML("beforeend", `<p>Gets the current position. Near a window or outside, accuracy should reach about 5–30 m within a minute.</p>
+      <div class="readout" id="gps">Tap "Locate".</div>
+      <div class="row"><button class="btn primary" type="button" id="gps-go">Locate</button></div>`);
+    verdict(s);
+    let watch = null;
+    $("gps-go").onclick = () => {
+      if (!navigator.geolocation) { $("gps").textContent = "Location not available."; return; }
+      $("gps").textContent = "Searching…";
+      const t0 = Date.now();
+      watch = navigator.geolocation.watchPosition((p) => {
+        const acc = Math.round(p.coords.accuracy);
+        $("gps").textContent = `Accuracy: ±${acc} m\nTime: ${Math.round((Date.now() - t0) / 1000)} s\n(coordinates are not stored)`;
+        notes.gps = `±${acc} m`;
+      }, (e) => { $("gps").textContent = "Location failed: " + e.message + "\nCheck Settings > Privacy > Location Services > Safari Websites."; },
+      { enableHighAccuracy: true, timeout: 60000, maximumAge: 0 });
+    };
+    cleanup = () => { if (watch != null) navigator.geolocation.clearWatch(watch); };
+  }
+
+  // ---------------------------------------------------------------- 10/11. Wi-Fi and mobile data
+  // Safari cannot tell Wi-Fi from mobile data, so the user switches one off and the page measures the connection.
+  function renderConn(s, mode) {
+    const wifi = mode === "wifi";
+    stage.insertAdjacentHTML("beforeend", `<p>${wifi
+      ? "Turn <b>Wi-Fi on</b> and <b>Mobile Data off</b> (Control Center), then tap Test. Also check that the Wi-Fi icon shows full bars near the router."
+      : "Insert a working SIM. Turn <b>Wi-Fi off</b> and <b>Mobile Data on</b>, then tap Test. The status bar should show LTE/4G/5G and signal bars."}</p>
+      <div class="readout" id="net">Not tested yet.</div>
+      <div class="row"><button class="btn primary" type="button" id="net-go">Test connection</button></div>
+      <p class="small muted" style="margin-top:10px">${wifi ? "Wi-Fi problems on a used iPhone (greyed-out switch, weak signal) can mean a past repair." : "“No SIM”, “SIM not supported” or no signal can mean a network-locked or damaged phone."}</p>`);
+    verdict(s);
+    $("net-go").onclick = async () => {
+      const out = $("net");
+      if (!navigator.onLine) { out.textContent = "Offline: no connection. Check that " + (wifi ? "Wi-Fi is connected." : "Mobile Data is on and there is signal."); notes[s.id] = "offline"; return; }
+      out.textContent = "Testing…";
+      const pings = [];
+      let bytes = 0;
+      const t0 = performance.now();
+      try {
+        for (let i = 0; i < 5; i++) {
+          const t = performance.now();
+          const r = await fetch(location.href.split("#")[0].split("?")[0] + "?net=" + Date.now() + i, { cache: "no-store" });
+          const b = await r.arrayBuffer();
+          bytes += b.byteLength;
+          pings.push(Math.round(performance.now() - t));
+        }
+      } catch (e) {
+        out.textContent = "Request failed: " + e.message + "\nThe connection is not working.";
+        notes[s.id] = "request failed";
+        return;
+      }
+      const secs = (performance.now() - t0) / 1000;
+      const kbps = Math.round((bytes * 8) / 1000 / secs);
+      const avg = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
+      out.textContent = `Connected ✓\nResponse time: ${avg} ms (best ${Math.min(...pings)} ms)\nSmall download: ~${kbps} kbps\n\n${avg < 400 ? "Looks normal." : "Slow: try again closer to the router / with better signal."}`;
+      notes[s.id] = `${avg} ms`;
+    };
+  }
+
+  // ---------------------------------------------------------------- 12. Settings checklist
+  const manual = [
+    ["activation", "Find My / iCloud is signed out", "Settings > [name] at the top: no Apple ID signed in, or the seller signs out in front of you. Otherwise the phone stays locked to them (Activation Lock)."],
+    ["battery", "Battery Health 85% or more, no warning", "Settings > Battery > Battery Health & Charging. No “Unable to verify… genuine battery” or “Service” message."],
+    ["parts", "Parts and Service History is clean", "Settings > General > About, near the bottom. Not shown = no parts replaced. “Genuine Apple Part” = replaced by Apple (OK). “Unknown Part” = not original."],
+    ["serial", "Model and serial match", "Settings > General > About: Model Name and Serial Number match the box/receipt and checkcoverage.apple.com."],
+    ["imei", "IMEI matches", "Dial *#06#, compare with Settings > General > About and the SIM tray/box."],
+    ["faceid", "Face ID / Touch ID works", "Settings > Face ID & Passcode > Set up an alternate appearance (or add a fingerprint). Must enroll successfully."],
+    ["truetone", "True Tone is available", "Control Center: long-press brightness. Missing True Tone often means a replaced, non-original screen."],
+    ["buttons", "All buttons work", "Volume up/down, side button, silent switch / Action button. Each one should click and react."],
+    ["charging", "Charges with cable (and MagSafe/wireless)", "Plug in: charging sound/bolt appears. Wiggle the cable gently: it should not disconnect."],
+    ["call", "Call: earpiece and mic clear", "Insert a SIM, call someone. Both sides hear clearly. Screen turns off near the ear (proximity sensor)."],
+    ["network", "SIM works (not network locked)", "Insert your own SIM: signal bars appear, no “SIM not supported” or “No SIM”. Check Settings > General > About > Carrier Lock (should say “No SIM restrictions”)."],
+    ["wifiset", "Wi-Fi switch and networks", "Settings > Wi-Fi: the switch is not greyed out and nearby networks appear."],
+    ["bluetooth", "Bluetooth", "Settings > Bluetooth: it turns on and finds nearby devices (earbuds, speaker, car)."],
+    ["vibrate", "Vibration / haptics", "Flip the silent switch or use the Action button: you should feel a vibration."],
+    ["lenses", "All camera lenses and flash", "Camera app: switch 0.5× / 1× / 2–5×, front camera, and turn on the flashlight."],
+    ["body", "No physical damage", "Frame and back glass, no bends or gaps at the screen edge, no water marks in the SIM tray."],
+  ];
+  function renderManual() {
+    stage.insertAdjacentHTML("beforeend", `<p>These can only be checked in Settings or by hand; no app can read them. Tap ✓ or ✕ for each.</p>
+      <div class="note">Battery health and replaced parts are only visible in Settings. Ask for a screen recording from Settings if you check remotely.</div>
+      <ul class="check">${manual.map(([id, t, how]) => `<li><div><b>${esc(t)}</b><div class="how">${esc(how)}</div></div>
+        <div class="mini" data-id="${id}"><button class="y" type="button" aria-pressed="${results[id] === "pass"}" aria-label="OK">✓</button><button class="n" type="button" aria-pressed="${results[id] === "fail"}" aria-label="Problem">✕</button></div></li>`).join("")}</ul>
+      <div class="row"><button class="btn primary" type="button" id="to-report">See the report</button></div>`);
+    stage.querySelectorAll(".mini").forEach((m) => m.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      const id = m.dataset.id, val = b.classList.contains("y") ? "pass" : "fail";
+      results[id] = results[id] === val ? undefined : val;
+      m.querySelector(".y").setAttribute("aria-pressed", String(results[id] === "pass"));
+      m.querySelector(".n").setAttribute("aria-pressed", String(results[id] === "fail"));
+    })));
+    $("to-report").onclick = () => go(idx + 1);
+  }
+
+  // ---------------------------------------------------------------- report
+  function renderReport() {
+    const items = [
+      ...steps.filter((s) => s.test).map((s) => [s.id, s.title]),
+      ...manual.map(([id, t]) => [id, t]),
+    ];
+    const state = (id) => results[id] || "skip";
+    const count = (v) => items.filter(([id]) => state(id) === v).length;
+    const fails = items.filter(([id]) => state(id) === "fail");
+    const critical = ["activation", "battery", "parts", "imei", "serial", "faceid", "network", "wifi", "data"].filter((id) => results[id] === "fail");
+    const text = [
+      `iPhone Check — ${new Date().toLocaleString()}`, `Device: ${notes.start || ""}`, "",
+      ...items.map(([id, t]) => `${state(id) === "pass" ? "OK  " : state(id) === "fail" ? "FAIL" : "--  "}  ${t}${notes[id] ? " (" + notes[id] + ")" : ""}`),
+    ].join("\n");
+    stage.innerHTML = `<h2>Report</h2>
+      <div class="summary"><div><b style="color:var(--ok)">${count("pass")}</b>OK</div><div><b style="color:var(--bad)">${count("fail")}</b>Problems</div><div><b>${count("skip")}</b>Not checked</div></div>
+      ${critical.length ? `<div class="note" style="background:var(--bad-soft);color:var(--bad)"><b>Serious problem:</b> ${critical.map((id) => esc(items.find((x) => x[0] === id)[1])).join("; ")}. Do not pay until this is resolved.</div>`
+        : fails.length ? `<div class="note">Some problems found. Use them to negotiate or walk away.</div>` : count("skip") ? "" : `<div class="note" style="background:var(--ok-soft);color:var(--ok)">Everything checked looks fine.</div>`}
+      <ul class="results" style="margin-top:12px">${items.map(([id, t]) => `<li><span>${esc(t)}${notes[id] ? `<br><span class="small muted">${esc(notes[id])}</span>` : ""}</span><span class="tag ${state(id)}">${state(id) === "pass" ? "OK" : state(id) === "fail" ? "Problem" : "—"}</span></li>`).join("")}</ul>
+      <div class="row"><button class="btn primary" type="button" id="share">Share / copy report</button><button class="btn" type="button" id="again">Check again</button></div>
+      <div class="row"><button class="btn" type="button" id="back">← Back to checklist</button></div>`;
+    $("share").onclick = async () => {
+      try {
+        if (navigator.share) { await navigator.share({ title: "iPhone Check", text }); return; }
+      } catch (_) { /* cancelled */ }
+      try { await navigator.clipboard.writeText(text); $("share").textContent = "Copied ✓"; } catch (_) { alert(text); }
+    };
+    $("again").onclick = () => { Object.keys(results).forEach((k) => delete results[k]); Object.keys(notes).forEach((k) => delete notes[k]); go(0); };
+    $("back").onclick = () => go(idx - 1);
+  }
+
+  go(0);
+})();
+</script>
+</body>
+</html>
