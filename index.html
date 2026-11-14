@@ -120,9 +120,11 @@ ul.check .how { font-size: 13.5px; color: var(--muted); }
     { id: "touch", title: "Touchscreen", test: true, render: renderTouch },
     { id: "multitouch", title: "Multi-touch", test: true, render: renderMulti },
     { id: "display", title: "Display colors", test: true, render: renderDisplay },
+    { id: "sidebtn", title: "Side / Home button", test: true, render: renderSideButton },
     { id: "speaker", title: "Speaker", test: true, render: renderSpeaker },
+    { id: "haptics", title: "Vibration / haptics", test: true, render: renderHaptics },
     { id: "mic", title: "Microphone", test: true, render: renderMic },
-    { id: "camBack", title: "Back camera", test: true, render: (s) => renderCamera(s, "environment") },
+    { id: "camBack", title: "Back cameras & flashlight", test: true, render: (s) => renderCamera(s, "environment") },
     { id: "camFront", title: "Front camera", test: true, render: (s) => renderCamera(s, "user") },
     { id: "motion", title: "Motion sensors", test: true, render: renderMotion },
     { id: "gps", title: "GPS / location", test: true, render: renderGps },
@@ -272,6 +274,43 @@ iOS: ${esc(d.ios || "not detected")}</div>
     };
   }
 
+  // ---------------------------------------------------------------- side / Home button
+  // A page cannot read buttons, but it notices when the screen locks (side button) or Safari goes to the
+  // background (Home button) and comes back.
+  function renderSideButton(s) {
+    stage.insertAdjacentHTML("beforeend", `<p><b>Side button:</b> press it once to lock the screen, then unlock and come back here.<br>
+      <b>iPhone with a Home button:</b> press Home, then open Safari again.</p>
+      <div class="readout" id="sb">Waiting for the button…</div>
+      <p class="small muted" style="margin-top:10px">Volume buttons cannot be detected by any web page: press volume up and down and check that the volume bar appears at the edge of the screen. That is in the checklist.</p>`);
+    const pass = verdict(s);
+    let left = 0;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") { left = Date.now(); return; }
+      if (left) {
+        $("sb").textContent = `Detected ✓ (screen was off/away for ${Math.max(1, Math.round((Date.now() - left) / 1000))} s)`;
+        notes[s.id] = "lock/unlock detected";
+        pass.focus();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    cleanup = () => document.removeEventListener("visibilitychange", onVis);
+  }
+
+  // ---------------------------------------------------------------- haptics
+  // Since iOS 18, Safari gives a haptic tap when a switch control is toggled.
+  function renderHaptics(s) {
+    const v = parseInt((/OS (\d+)_/.exec(navigator.userAgent) || [])[1] || "0", 10);
+    stage.insertAdjacentHTML("beforeend", `<p>Toggle the switch a few times. You should feel a light tap (the Taptic Engine).</p>
+      <label style="display:flex;align-items:center;gap:14px;font-size:18px;font-weight:650;margin:14px 0">
+        <input type="checkbox" switch id="hap" style="transform:scale(1.6);transform-origin:left center;margin-right:18px"> Toggle me
+      </label>
+      ${v && v < 18 ? '<div class="note">This iPhone runs iOS ' + v + ': the switch tap needs iOS 18. Test vibration instead by flipping the silent switch (or pressing the Action button): you should feel a buzz.</div>'
+        : '<p class="small muted">No tap? Check Settings > Sounds &amp; Haptics > System Haptics is on, then flip the silent switch or press the Action button: you should feel a buzz.</p>'}`);
+    verdict(s);
+    let n = 0;
+    $("hap").addEventListener("change", () => { n++; notes[s.id] = `toggled ${n}×`; });
+  }
+
   // ---------------------------------------------------------------- 4. speaker
   function renderSpeaker(s) {
     stage.insertAdjacentHTML("beforeend", `<p>Plays a rising tone and a short melody. It should be clear and loud, with no crackling or buzzing. Cover the bottom speaker with a finger: the sound should get quieter.</p>
@@ -349,27 +388,80 @@ iOS: ${esc(d.ios || "not detected")}</div>
     cleanup = () => { cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); if (ctx) ctx.close(); };
   }
 
-  // ---------------------------------------------------------------- 6/7. cameras
+  // ---------------------------------------------------------------- cameras (every lens) + flashlight
   function renderCamera(s, facing) {
     const back = facing === "environment";
-    stage.insertAdjacentHTML("beforeend", `<p>${back ? "Point at something with detail and text. Tap the picture to refocus. The image should be sharp, with no spots, haze or dark corners (scratched lens or moisture)." : "Look at the screen. The image should be clear; check for blur or spots."}</p>
+    stage.insertAdjacentHTML("beforeend", `<p>${back
+      ? "Point at something with detail and text. The image should be sharp, with no spots, haze or dark corners (scratched lens or moisture). Tap each lens below to test it."
+      : "Look at the screen. The image should be clear; check for blur or spots."}</p>
       <video id="cam" playsinline muted autoplay></video>
-      <div class="readout small" id="cam-info" style="margin-top:10px">Starting camera…</div>`);
-    if (back) stage.insertAdjacentHTML("beforeend", `<p class="small muted" style="margin-top:10px">Also try the other lenses (0.5× ultra wide, 2×/3×/5× telephoto) in the Camera app, and the flashlight from Control Center. Those are in the checklist.</p>`);
+      <div class="readout small" id="cam-info" style="margin-top:10px">Starting camera…</div>
+      ${back ? `<div class="row" id="lenses"></div>
+      <div class="row"><button class="btn" type="button" id="torch" hidden>🔦 Flashlight on</button></div>
+      <p class="small muted" id="torch-note" style="margin-top:8px"></p>` : ""}`);
     verdict(s);
     let stream = null;
+    let torchOn = false;
+    const tested = new Set();
+    const start = async (constraints) => {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({ video: constraints, audio: false });
+      const v = $("cam"); v.srcObject = stream; await v.play().catch(() => {});
+      const track = stream.getVideoTracks()[0];
+      const st = track.getSettings();
+      tested.add(track.label || facing);
+      $("cam-info").textContent = `${track.label || facing}\n${st.width || "?"}×${st.height || "?"}`;
+      notes[s.id] = back ? `${tested.size} lens(es) opened` : `${st.width || "?"}×${st.height || "?"}`;
+      if (back) {
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+        torchOn = false;
+        $("torch").hidden = !caps.torch;
+        $("torch").textContent = "🔦 Flashlight on";
+        $("torch-note").textContent = caps.torch ? "" : "This iOS version does not let web pages switch the flashlight; test it from Control Center (it is in the checklist).";
+      }
+      return track;
+    };
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: facing }, width: { ideal: 1920 } }, audio: false });
-        const v = $("cam"); v.srcObject = stream; await v.play().catch(() => {});
-        const st = stream.getVideoTracks()[0].getSettings();
-        $("cam-info").textContent = `${st.width || "?"}×${st.height || "?"} · ${stream.getVideoTracks()[0].label || facing}`;
-        notes[s.id] = `${st.width || "?"}×${st.height || "?"}`;
+        try {
+          await start({ facingMode: { exact: facing }, width: { ideal: 1920 } });
+        } catch (first) {
+          if (!back) throw first;
+          await start({ width: { ideal: 1920 } }); // some browsers do not support "exact"; the lens list below still works
+        }
       } catch (e) {
         $("cam-info").textContent = "Camera did not start: " + e.message + "\nAllow it in Settings > Safari > Camera, then reload. If it still fails, the camera may be faulty.";
         notes[s.id] = "did not start";
+        return;
       }
+      if (!back) return;
+      // Safari lists each physical lens (wide, ultra wide, telephoto) as its own camera after permission is given.
+      const cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput" && !/front|user|harap/i.test(d.label));
+      $("lenses").innerHTML = cams.map((d, i) => `<button class="btn" type="button" data-dev="${esc(d.deviceId)}">${esc((d.label || "Camera " + (i + 1)).replace(/^Back\s*/i, "") || "Camera")}</button>`).join("");
+      $("lenses").querySelectorAll("[data-dev]").forEach((b) => b.addEventListener("click", async () => {
+        try {
+          await start({ deviceId: { exact: b.dataset.dev }, width: { ideal: 1920 } });
+          b.classList.add("pass");
+        } catch (e) {
+          b.classList.add("fail");
+          $("cam-info").textContent = `${b.textContent}: did not start (${e.message}). This lens may be faulty.`;
+          notes[s.id] = `${b.textContent} failed`;
+        }
+      }));
     })();
+    if (back) {
+      $("torch").onclick = async () => {
+        try {
+          const track = stream.getVideoTracks()[0];
+          torchOn = !torchOn;
+          await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+          $("torch").textContent = torchOn ? "🔦 Flashlight off" : "🔦 Flashlight on";
+          notes.flash = "switched on from the page";
+        } catch (e) {
+          $("torch-note").textContent = "Could not switch the flashlight: " + e.message;
+        }
+      };
+    }
     cleanup = () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }
 
@@ -484,14 +576,13 @@ iOS: ${esc(d.ios || "not detected")}</div>
     ["imei", "IMEI matches", "Dial *#06#, compare with Settings > General > About and the SIM tray/box."],
     ["faceid", "Face ID / Touch ID works", "Settings > Face ID & Passcode > Set up an alternate appearance (or add a fingerprint). Must enroll successfully."],
     ["truetone", "True Tone is available", "Control Center: long-press brightness. Missing True Tone often means a replaced, non-original screen."],
-    ["buttons", "All buttons work", "Volume up/down, side button, silent switch / Action button. Each one should click and react."],
+    ["buttons", "Volume buttons and silent switch / Action button", "Press volume up and down: the volume bar appears. Flip the silent switch or press the Action button: the banner appears. (A web page cannot detect these.)"],
     ["charging", "Charges with cable (and MagSafe/wireless)", "Plug in: charging sound/bolt appears. Wiggle the cable gently: it should not disconnect."],
     ["call", "Call: earpiece and mic clear", "Insert a SIM, call someone. Both sides hear clearly. Screen turns off near the ear (proximity sensor)."],
     ["network", "SIM works (not network locked)", "Insert your own SIM: signal bars appear, no “SIM not supported” or “No SIM”. Check Settings > General > About > Carrier Lock (should say “No SIM restrictions”)."],
     ["wifiset", "Wi-Fi switch and networks", "Settings > Wi-Fi: the switch is not greyed out and nearby networks appear."],
     ["bluetooth", "Bluetooth", "Settings > Bluetooth: it turns on and finds nearby devices (earbuds, speaker, car)."],
-    ["vibrate", "Vibration / haptics", "Flip the silent switch or use the Action button: you should feel a vibration."],
-    ["lenses", "All camera lenses and flash", "Camera app: switch 0.5× / 1× / 2–5×, front camera, and turn on the flashlight."],
+    ["lenses", "Flashlight and camera app", "If the flashlight button did not appear in the camera step: Control Center > flashlight. Camera app: switching 0.5× / 1× / 2–5× is smooth, photos are sharp."],
     ["body", "No physical damage", "Frame and back glass, no bends or gaps at the screen edge, no water marks in the SIM tray."],
   ];
   function renderManual() {
